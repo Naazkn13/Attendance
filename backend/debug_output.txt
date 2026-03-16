@@ -1,0 +1,10 @@
+﻿Current time: 17:11:18 IST (11:41:18 UTC)
+Checking punches since: 16:41:18 IST
+
+  IN: SHAMIM SHIRGAONKAR at 2026-03-14 22:25:43 IST (-314 min ago)
+  OUT: Yasmeen shaikh at 2026-03-14 21:32:37 IST (-261 min ago)
+  OUT: Shruti Kate at 2026-03-14 16:47:28 IST (24 min ago)
+  OUT: YOGESH MAHADIK at 2026-03-14 22:28:52 IST (-318 min ago)
+
+Total recent punches in last 30 min: 4
+Total sessions today: 4
