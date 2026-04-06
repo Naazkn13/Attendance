@@ -95,6 +95,16 @@ async def upload_dat_file(
             error_count += 1
             continue
 
+    # Update device last_seen_at if syncing from cloud agent
+    if device_sn and device_sn != "MANUAL_USB":
+        try:
+            db.table("devices").update({
+                "last_seen_at": datetime.utcnow().isoformat(),
+                "poll_status": "ok"
+            }).eq("device_sn", device_sn).execute()
+        except Exception as e:
+            logger.error(f"Failed to update device status for {device_sn}: {e}")
+
     logger.info(f"USB Sync for {device_sn}: {inserted_count} inserted, {error_count} errors")
     return {
         "inserted": inserted_count,
