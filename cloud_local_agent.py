@@ -8,7 +8,7 @@ DEVICE_IP = "192.168.1.201"
 DEVICE_PORT = 4370
 DEVICE_SN = "4266542501559"
 # Change this to your Railway/Vercel API URL once deployed
-CLOUD_API_URL = "http://127.0.0.1:8000/api/sync/upload-dat" 
+CLOUD_API_URL = "https://attendance-production-38c4.up.railway.app/api/sync/upload-dat" 
 POLL_INTERVAL_SECONDS = 60
 # ===============================
 
