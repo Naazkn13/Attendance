@@ -40,18 +40,18 @@ def forward_punches_to_railway(body_text: str, sn: str):
         files = {"file": ("sync.dat", body_text, "text/plain")}
         data  = {"device_sn": sn}
         resp  = requests.post(
-            f"{RAILWAY_URL}/api/sync/upload-dat",
+            "{}/api/sync/upload-dat".format(RAILWAY_URL),
             files=files,
             data=data,
             timeout=15,
         )
         if resp.status_code == 200:
             result = resp.json()
-            logger.info(f"Forwarded to Railway — {result['inserted']} new, {result['errors']} errors")
+            logger.info("Forwarded to Railway — {} new, {} errors".format(result['inserted'], result['errors']))
         else:
-            logger.error(f"Railway error {resp.status_code}: {resp.text}")
+            logger.error("Railway error {}: {}".format(resp.status_code, resp.text))
     except Exception as e:
-        logger.error(f"Failed to forward to Railway: {e}")
+        logger.error("Failed to forward to Railway: {}".format(e))
 
 
 class ADMSHandler(BaseHTTPRequestHandler):
@@ -69,7 +69,7 @@ class ADMSHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
 
         if path == "/iclock/cdata":
-            logger.info(f"Heartbeat from device SN={sn}")
+            logger.info("Heartbeat from device SN={}".format(sn))
             # Tell device to push its attendance log
             response = (
                 "GET ATTLOG From=2000-01-01 00:00:00\r\n"
@@ -97,7 +97,7 @@ class ADMSHandler(BaseHTTPRequestHandler):
 
         if path == "/iclock/cdata" and table == "ATTLOG" and body:
             lines = [l for l in body.split("\n") if l.strip()]
-            logger.info(f"Received {len(lines)} punch lines from SN={sn}")
+            logger.info("Received {} punch lines from SN={}".format(len(lines), sn))
             forward_punches_to_railway(body, sn)
 
         self._respond(200, "OK\r\n")
@@ -112,9 +112,9 @@ class ADMSHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    logger.info(f"Andheri ADMS Relay starting on port {RELAY_PORT}")
-    logger.info(f"Forwarding to Railway: {RAILWAY_URL}")
-    logger.info(f"Waiting for device SN={DEVICE_SN}...")
+    logger.info("Andheri ADMS Relay starting on port {}".format(RELAY_PORT))
+    logger.info("Forwarding to Railway: {}".format(RAILWAY_URL))
+    logger.info("Waiting for device SN={}...".format(DEVICE_SN))
 
     try:
         server = HTTPServer(("0.0.0.0", RELAY_PORT), ADMSHandler)
@@ -122,4 +122,4 @@ if __name__ == "__main__":
     except PermissionError:
         logger.error("Port 80 requires admin. Run as Administrator, or change RELAY_PORT to 8080.")
     except OSError as e:
-        logger.error(f"Could not start server: {e}")
+        logger.error("Could not start server: {}".format(e))
