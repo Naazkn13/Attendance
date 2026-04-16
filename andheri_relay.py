@@ -57,7 +57,7 @@ def forward_punches_to_railway(body_text: str, sn: str):
 class ADMSHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
-        pass  # suppress default HTTP logs (we use our own)
+        logger.debug("HTTP: " + (format % args))
 
     def _sn(self):
         qs = parse_qs(urlparse(self.path).query)
@@ -68,6 +68,7 @@ class ADMSHandler(BaseHTTPRequestHandler):
         sn = self._sn()
         path = urlparse(self.path).path
 
+        logger.info("GET path={} SN={}".format(path, sn))
         if path == "/iclock/cdata":
             logger.info("Heartbeat from device SN={}".format(sn))
             # Tell device to push its attendance log
@@ -95,10 +96,14 @@ class ADMSHandler(BaseHTTPRequestHandler):
         raw_body = self.rfile.read(length) if length else b""
         body     = raw_body.decode("utf-8", errors="replace").strip()
 
+        logger.info("POST path={} table={} SN={} body_len={}".format(path, table, sn, len(body)))
+
         if path == "/iclock/cdata" and table == "ATTLOG" and body:
             lines = [l for l in body.split("\n") if l.strip()]
             logger.info("Received {} punch lines from SN={}".format(len(lines), sn))
             forward_punches_to_railway(body, sn)
+        elif body:
+            logger.info("POST body preview: {}".format(body[:200]))
 
         self._respond(200, "OK\r\n")
 
