@@ -17,7 +17,7 @@ from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
 # ======== CONFIGURATION ========
-RELAY_PORT = 80
+RELAY_PORT = 8080
 RAILWAY_URL = "https://attendance-production-38c4.up.railway.app"
 DEVICE_SN   = "170371318"   # Andheri device SN (auto-registered)
 # ===============================
