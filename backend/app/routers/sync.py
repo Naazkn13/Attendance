@@ -33,6 +33,7 @@ async def upload_dat_file(
 
     inserted_count = 0
     error_count = 0
+    punches_to_insert = []
 
     for line in body_text.split("\n"):
         line = line.strip()
@@ -75,25 +76,47 @@ async def upload_dat_file(
                 "raw_line": line,
                 "source": "USB_UPLOAD"
             }
+            
+            punches_to_insert.append({
+                "device_user_id": device_user_id,
+                "punch_time": punch_time_utc.isoformat(),
+                "device_sn": device_sn,
+                "raw_payload": raw_payload,
+                "is_processed": False,
+            })
 
-            db.table("raw_punches").upsert(
-                {
-                    "device_user_id": device_user_id,
-                    "punch_time": punch_time_utc.isoformat(),
-                    "device_sn": device_sn,
-                    "raw_payload": raw_payload,
-                    "is_processed": False,
-                },
-                on_conflict="device_sn,device_user_id,punch_time",
-                ignore_duplicates=True,
-            ).execute()
-
-            inserted_count += 1
+            # Batch insert every 1000 records
+            if len(punches_to_insert) >= 1000:
+                try:
+                    db.table("raw_punches").upsert(
+                        punches_to_insert,
+                        on_conflict="device_sn,device_user_id,punch_time",
+                        ignore_duplicates=True,
+                    ).execute()
+                    inserted_count += len(punches_to_insert)
+                    punches_to_insert = []
+                except Exception as e:
+                    logger.error(f"Error during batch insert: {e}")
+                    error_count += len(punches_to_insert)
+                    punches_to_insert = []
 
         except Exception as e:
             logger.error(f"Error processing line {line}: {e}")
             error_count += 1
             continue
+            
+    # Insert remaining records
+    if punches_to_insert:
+        try:
+            db.table("raw_punches").upsert(
+                punches_to_insert,
+                on_conflict="device_sn,device_user_id,punch_time",
+                ignore_duplicates=True,
+            ).execute()
+            inserted_count += len(punches_to_insert)
+        except Exception as e:
+            logger.error(f"Error during final batch insert: {e}")
+            error_count += len(punches_to_insert)
 
     # Update device last_seen_at if syncing from cloud agent
     if device_sn and device_sn != "MANUAL_USB":

@@ -6,6 +6,7 @@ on employee_id + session_date, not device.
 """
 
 import logging
+import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
@@ -15,45 +16,54 @@ from app.utils.timezone import get_session_date, to_local, to_utc, get_business_
 
 logger = logging.getLogger(__name__)
 
+_builder_lock = asyncio.Lock()
 
 async def run_session_builder():
     """Main entry point: process all unprocessed punches."""
-    db = get_supabase()
+    if _builder_lock.locked():
+        logger.info("Session Builder already running. Skipping concurrent trigger.")
+        return {"processed": 0, "errors": 0, "message": "Already running"}
 
-    # Fetch unprocessed punches, ordered by punch_time ASC (time-ordered pairing)
-    result = db.table("raw_punches") \
-        .select("*") \
-        .eq("is_processed", False) \
-        .is_("duplicate_of", "null") \
-        .order("punch_time", desc=False) \
-        .execute()
+    async with _builder_lock:
+        db = get_supabase()
 
-    if not result.data:
-        return {"processed": 0, "errors": 0}
+        # Fetch unprocessed punches, ordered by punch_time ASC (time-ordered pairing)
+        result = db.table("raw_punches") \
+            .select("*") \
+            .eq("is_processed", False) \
+            .is_("duplicate_of", "null") \
+            .order("punch_time", desc=False) \
+            .execute()
 
-    logger.info(f"Session Builder: {len(result.data)} unprocessed punches found")
+        if not result.data:
+            return {"processed": 0, "errors": 0}
 
-    processed = 0
-    errors = 0
-    affected_sessions = set()  # (employee_id, session_date) pairs
+        logger.info(f"Session Builder: {len(result.data)} unprocessed punches found")
 
-    for punch in result.data:
-        try:
-            session_info = await _process_punch(db, punch)
-            if session_info:
-                affected_sessions.add(session_info)
-            processed += 1
-        except Exception as e:
-            logger.error(f"Error processing punch {punch['id']}: {e}")
-            errors += 1
+        processed = 0
+        errors = 0
+        affected_sessions = set()  # (employee_id, session_date) pairs
 
-    # After all punches processed, run Override Applicator for affected sessions
-    if affected_sessions:
-        from app.workers.override_applicator import apply_overrides_for_sessions
-        await apply_overrides_for_sessions(list(affected_sessions))
+        for punch in result.data:
+            # Yield control to the event loop to prevent freezing the server
+            await asyncio.sleep(0.01)
+            
+            try:
+                session_info = await _process_punch(db, punch)
+                if session_info:
+                    affected_sessions.add(session_info)
+                processed += 1
+            except Exception as e:
+                logger.error(f"Error processing punch {punch['id']}: {e}")
+                errors += 1
 
-    logger.info(f"Session Builder complete: {processed} processed, {errors} errors")
-    return {"processed": processed, "errors": errors}
+        # After all punches processed, run Override Applicator for affected sessions
+        if affected_sessions:
+            from app.workers.override_applicator import apply_overrides_for_sessions
+            await apply_overrides_for_sessions(list(affected_sessions))
+
+        logger.info(f"Session Builder complete: {processed} processed, {errors} errors")
+        return {"processed": processed, "errors": errors}
 
 
 async def _process_punch(db, punch: dict) -> Optional[tuple]:

@@ -103,6 +103,22 @@ async def finalize_payroll(data: PayrollFinalizeRequest):
     return {"message": "Payroll finalized", "payroll_id": str(data.payroll_id)}
 
 
+@router.delete("/payroll/{payroll_id}")
+async def delete_payroll(payroll_id: UUID):
+    """Delete a DRAFT payroll record."""
+    db = get_supabase()
+    result = db.table("payroll_records").select("id, status").eq("id", str(payroll_id)).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Payroll not found")
+
+    payroll = result.data[0]
+    if payroll["status"] == "FINAL":
+        raise HTTPException(status_code=400, detail="Cannot delete a finalized payroll record")
+
+    db.table("payroll_records").delete().eq("id", str(payroll_id)).execute()
+    return {"message": "Payroll deleted", "payroll_id": str(payroll_id)}
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # RECALCULATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

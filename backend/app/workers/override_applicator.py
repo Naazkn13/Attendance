@@ -5,6 +5,7 @@ session building or recalculation. Keyed on employee_id + session_date.
 """
 
 import logging
+import asyncio
 from datetime import datetime
 from typing import List, Tuple, Optional
 
@@ -21,6 +22,7 @@ async def apply_overrides_for_sessions(affected_sessions: List[Tuple[str, str]])
     db = get_supabase()
 
     for employee_id, session_date in affected_sessions:
+        await asyncio.sleep(0.01)
         try:
             await _apply_override(db, employee_id, session_date)
         except Exception as e:
@@ -43,6 +45,7 @@ async def apply_all_overrides_for_employee(employee_id: str, period_start: str, 
         return
 
     for override in overrides.data:
+        await asyncio.sleep(0.01)
         try:
             await _apply_override(db, employee_id, override["session_date"])
         except Exception as e:

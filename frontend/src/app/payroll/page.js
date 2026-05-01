@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getPayrolls, calculatePayroll, calculateAllPayroll, finalizePayroll, getPayroll, getEmployees } from '@/lib/api';
+import { getPayrolls, calculatePayroll, calculateAllPayroll, finalizePayroll, deletePayroll, getPayroll, getEmployees } from '@/lib/api';
 
 export default function PayrollPage() {
     const [payrolls, setPayrolls] = useState([]);
@@ -55,6 +55,14 @@ export default function PayrollPage() {
         try {
             const data = await getPayroll(id);
             setSelectedPayroll(data);
+        } catch (err) { alert(`Error: ${err.message}`); }
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm('Delete this payroll record? This cannot be undone.')) return;
+        try {
+            await deletePayroll(id);
+            loadData();
         } catch (err) { alert(`Error: ${err.message}`); }
     };
 
@@ -120,7 +128,10 @@ export default function PayrollPage() {
                                     <td>
                                         <button className="btn btn-secondary btn-sm" onClick={() => viewDetails(p.id)} style={{ marginRight: 4 }}>View</button>
                                         {p.status === 'DRAFT' && (
-                                            <button className="btn btn-primary btn-sm" onClick={() => handleFinalize(p.id)}>Finalize</button>
+                                            <>
+                                                <button className="btn btn-primary btn-sm" onClick={() => handleFinalize(p.id)} style={{ marginRight: 4 }}>Finalize</button>
+                                                <button className="btn btn-sm" style={{ background: 'var(--error)', color: '#fff', border: 'none', cursor: 'pointer' }} onClick={() => handleDelete(p.id)}>Delete</button>
+                                            </>
                                         )}
                                     </td>
                                 </tr>
