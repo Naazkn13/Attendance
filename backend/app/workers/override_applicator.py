@@ -80,7 +80,7 @@ async def _apply_override(db, employee_id: str, session_date: str):
         .limit(1) \
         .execute()
 
-    if override_type == "MARK_PRESENT" and not session_result.data:
+    if override_type in ["MARK_PRESENT", "SET_BOTH"] and not session_result.data:
         # Create synthetic session
         await _create_synthetic_session(db, employee_id, session_date, override)
         return
@@ -100,9 +100,8 @@ async def _apply_override(db, employee_id: str, session_date: str):
             punch_out = datetime.fromisoformat(override["override_punch_out"].replace("Z", "+00:00"))
             gross_hours = round((punch_out - punch_in).total_seconds() / 3600, 2)
 
-            shift_result = db.table("shifts").select("break_minutes").eq("id", session.get("shift_id", "")).execute()
-            break_min = shift_result.data[0]["break_minutes"] if shift_result.data else 0
-            net_hours = max(0, round(gross_hours - (break_min / 60), 2))
+            break_min = 0
+            net_hours = max(0, round(gross_hours, 2))
 
             update_data.update({
                 "punch_out_time": override["override_punch_out"],
@@ -119,9 +118,8 @@ async def _apply_override(db, employee_id: str, session_date: str):
                 punch_out = datetime.fromisoformat(session["punch_out_time"].replace("Z", "+00:00"))
                 gross_hours = round((punch_out - punch_in).total_seconds() / 3600, 2)
 
-                shift_result = db.table("shifts").select("break_minutes").eq("id", session.get("shift_id", "")).execute()
-                break_min = shift_result.data[0]["break_minutes"] if shift_result.data else 0
-                net_hours = max(0, round(gross_hours - (break_min / 60), 2))
+                break_min = 0
+                net_hours = max(0, round(gross_hours, 2))
 
                 update_data.update({"gross_hours": gross_hours, "net_hours": net_hours})
 
@@ -131,9 +129,8 @@ async def _apply_override(db, employee_id: str, session_date: str):
             punch_out = datetime.fromisoformat(override["override_punch_out"].replace("Z", "+00:00"))
             gross_hours = round((punch_out - punch_in).total_seconds() / 3600, 2)
 
-            shift_result = db.table("shifts").select("break_minutes").eq("id", session.get("shift_id", "")).execute()
-            break_min = shift_result.data[0]["break_minutes"] if shift_result.data else 0
-            net_hours = max(0, round(gross_hours - (break_min / 60), 2))
+            break_min = 0
+            net_hours = max(0, round(gross_hours, 2))
 
             update_data.update({
                 "punch_in_time": override["override_punch_in"],
@@ -170,11 +167,17 @@ async def _create_synthetic_session(db, employee_id: str, session_date: str, ove
     emp_result = db.table("employees").select("shift_id").eq("id", employee_id).execute()
     shift_id = emp_result.data[0]["shift_id"] if emp_result.data else None
 
-    net_hours = float(override.get("override_net_hours", 0))
-
-    # Use override times if provided, otherwise use start of day
     punch_in_time = override.get("override_punch_in")
     punch_out_time = override.get("override_punch_out")
+
+    net_hours = 0
+    if override.get("override_type") == "SET_BOTH":
+        if override.get("override_punch_in") and override.get("override_punch_out"):
+            pin = datetime.fromisoformat(override["override_punch_in"].replace("Z", "+00:00"))
+            pout = datetime.fromisoformat(override["override_punch_out"].replace("Z", "+00:00"))
+            net_hours = round((pout - pin).total_seconds() / 3600, 2)
+    elif override.get("override_net_hours") is not None:
+        net_hours = float(override["override_net_hours"])
 
     if not punch_in_time:
         punch_in_time = get_start_of_day_utc(session_d).isoformat()

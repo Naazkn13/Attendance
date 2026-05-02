@@ -103,6 +103,22 @@ async def finalize_payroll(data: PayrollFinalizeRequest):
     return {"message": "Payroll finalized", "payroll_id": str(data.payroll_id)}
 
 
+@router.post("/payroll/{payroll_id}/unfinalize")
+async def unfinalize_payroll(payroll_id: UUID):
+    """Revert a FINAL payroll back to DRAFT status."""
+    db = get_supabase()
+    result = db.table("payroll_records").select("*").eq("id", str(payroll_id)).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Payroll not found")
+
+    payroll = result.data[0]
+    if payroll["status"] != "FINAL":
+        raise HTTPException(status_code=400, detail=f"Can only unfinalize FINAL payroll (current: {payroll['status']})")
+
+    db.table("payroll_records").update({"status": "DRAFT"}).eq("id", str(payroll_id)).execute()
+    return {"message": "Payroll unfinalized, reverted to DRAFT", "payroll_id": str(payroll_id)}
+
+
 @router.delete("/payroll/{payroll_id}")
 async def delete_payroll(payroll_id: UUID):
     """Delete a DRAFT payroll record."""

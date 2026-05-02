@@ -16,38 +16,37 @@ router = APIRouter(tags=["Payslip"])
 
 @router.post("/payslip/generate")
 async def generate_payslips(period_start: date, period_end: date):
-    """Generate payslips for all active employees for a given period.
+    """Get all FINAL payslips for the given period.
     
-    This calculates payroll (if not already done) and returns structured
-    payslip data for each employee.
+    This retrieves payrolls that have been finalized by the administrator
+    and returns structured payslip data for each.
     """
     db = get_supabase()
-    from app.workers.payroll_worker import calculate_payroll
 
-    employees = db.table("employees") \
-        .select("id, name, device_user_id, basic_salary, shift_id, overtime_rate_per_hour, joining_date") \
-        .eq("is_active", True) \
-        .order("name") \
+    payroll_results = db.table("payroll_records") \
+        .select("*, employees(id, name, device_user_id, shift_id, shifts(shift_hours))") \
+        .eq("period_start", period_start.isoformat()) \
+        .eq("period_end", period_end.isoformat()) \
+        .eq("status", "FINAL") \
         .execute()
 
     payslips = []
-    for emp in (employees.data or []):
+    for payroll in (payroll_results.data or []):
         try:
-            # Calculate payroll (creates/updates DRAFT record)
-            payroll = await calculate_payroll(emp["id"], period_start, period_end)
-            
+            emp = payroll.get("employees", {})
+            shift = emp.get("shifts", {}) or {}
             calc = payroll.get("calculation_details", {})
             
             payslip = {
-                "employee_id": emp["id"],
-                "employee_name": emp["name"],
-                "device_user_id": emp["device_user_id"],
+                "employee_id": payroll["employee_id"],
+                "employee_name": emp.get("name", "Unknown"),
+                "device_user_id": emp.get("device_user_id"),
                 "period_start": period_start.isoformat(),
                 "period_end": period_end.isoformat(),
                 "basic_salary": payroll.get("basic_salary", 0),
                 "per_day_salary": calc.get("per_day_salary", 0),
                 "per_hour_rate": calc.get("per_hour_rate", 0),
-                "shift_hours": calc.get("shift_hours_per_day", 8),
+                "shift_hours": shift.get("shift_hours", 8),
                 "days_in_month": calc.get("days_in_month", 30),
                 "total_working_days": payroll.get("total_working_days", 0),
                 "days_present": payroll.get("days_present", 0),
@@ -70,8 +69,8 @@ async def generate_payslips(period_start: date, period_end: date):
             payslips.append(payslip)
         except Exception as e:
             payslips.append({
-                "employee_id": emp["id"],
-                "employee_name": emp["name"],
+                "employee_id": payroll.get("employee_id"),
+                "employee_name": payroll.get("employees", {}).get("name", "Unknown"),
                 "status": "error",
                 "error": str(e),
             })

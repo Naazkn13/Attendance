@@ -100,6 +100,8 @@ export const getPayrolls = (params = {}) => {
 export const getPayroll = (id) => request(`/api/payroll/${id}`);
 export const finalizePayroll = (payrollId) =>
   request('/api/payroll/finalize', { method: 'POST', body: JSON.stringify({ payroll_id: payrollId }) });
+export const unfinalizePayroll = (payrollId) =>
+  request(`/api/payroll/${payrollId}/unfinalize`, { method: 'POST' });
 export const deletePayroll = (payrollId) =>
   request(`/api/payroll/${payrollId}`, { method: 'DELETE' });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getPayrolls, calculatePayroll, calculateAllPayroll, finalizePayroll, deletePayroll, getPayroll, getEmployees } from '@/lib/api';
+import { getPayrolls, calculatePayroll, calculateAllPayroll, finalizePayroll, unfinalizePayroll, deletePayroll, getPayroll, getEmployees } from '@/lib/api';
 
 export default function PayrollPage() {
     const [payrolls, setPayrolls] = useState([]);
@@ -47,6 +47,14 @@ export default function PayrollPage() {
         if (!confirm('Finalize this payroll? This marks it as FINAL.')) return;
         try {
             await finalizePayroll(id);
+            loadData();
+        } catch (err) { alert(`Error: ${err.message}`); }
+    };
+
+    const handleUnfinalize = async (id) => {
+        if (!confirm('Unfinalize this payroll? It will revert to DRAFT status and can be recalculated.')) return;
+        try {
+            await unfinalizePayroll(id);
             loadData();
         } catch (err) { alert(`Error: ${err.message}`); }
     };
@@ -128,10 +136,13 @@ export default function PayrollPage() {
                                     <td>
                                         <button className="btn btn-secondary btn-sm" onClick={() => viewDetails(p.id)} style={{ marginRight: 4 }}>View</button>
                                         {p.status === 'DRAFT' && (
-                                            <>
-                                                <button className="btn btn-primary btn-sm" onClick={() => handleFinalize(p.id)} style={{ marginRight: 4 }}>Finalize</button>
-                                                <button className="btn btn-sm" style={{ background: 'var(--error)', color: '#fff', border: 'none', cursor: 'pointer' }} onClick={() => handleDelete(p.id)}>Delete</button>
-                                            </>
+                                            <button className="btn btn-primary btn-sm" onClick={() => handleFinalize(p.id)} style={{ marginRight: 4 }}>Finalize</button>
+                                        )}
+                                        {p.status === 'FINAL' && (
+                                            <button className="btn btn-sm" onClick={() => handleUnfinalize(p.id)} style={{ background: 'var(--warning)', color: '#000', border: 'none', cursor: 'pointer', marginRight: 4 }}>Unfinalize</button>
+                                        )}
+                                        {(p.status === 'DRAFT' || p.status === 'RECALCULATED') && (
+                                            <button className="btn btn-sm" style={{ background: 'var(--error)', color: '#fff', border: 'none', cursor: 'pointer' }} onClick={() => handleDelete(p.id)}>Delete</button>
                                         )}
                                     </td>
                                 </tr>
