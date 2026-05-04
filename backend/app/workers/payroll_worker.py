@@ -90,6 +90,25 @@ async def calculate_payroll(employee_id: str, period_start: date, period_end: da
             daily_data[sd] = []
         daily_data[sd].append(session)
 
+    # Deduplicate: when a date has multiple sessions (from duplicate syncs),
+    # apply these rules to keep only one session per date:
+    #   1. Prefer overridden sessions over non-overridden ones
+    #   2. If multiple overridden sessions exist, keep only the most recently updated
+    #   3. If no overridden sessions, keep only the most recently updated
+    for sd, day_sessions in daily_data.items():
+        if len(day_sessions) > 1:
+            overridden = [s for s in day_sessions if s.get("has_override")]
+            if overridden:
+                candidates = overridden
+            else:
+                candidates = day_sessions
+
+            # Keep only the most recently updated session
+            best = max(candidates, key=lambda s: s.get("updated_at", ""))
+            daily_data[sd] = [best]
+            logger.info(f"Dedup {sd}: kept session {best['id'][:12]} ({best.get('net_hours', 0)}h), "
+                       f"discarded {len(day_sessions) - 1} duplicate(s)")
+
     # Calculate per-day
     total_worked_hours = Decimal("0")
     total_overtime = Decimal("0")

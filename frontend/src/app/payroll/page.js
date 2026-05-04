@@ -251,6 +251,9 @@ export default function PayrollPage() {
                                     <tbody>
                                         {selectedPayroll.calculation_details.daily_breakdown.map((day, idx) => {
                                             const isSunday = day.is_sunday;
+                                            const isLeave = day.is_leave;
+                                            const isPaidLeave = isLeave && day.total_day_pay > 0;
+                                            
                                             const sessions = day.sessions || [];
                                             const firstSession = sessions[0] || {};
                                             const lastSession = sessions[sessions.length - 1] || {};
@@ -258,20 +261,35 @@ export default function PayrollPage() {
                                             const inTime = firstSession.punch_in ? new Date(firstSession.punch_in).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
                                             const outTime = lastSession.punch_out ? new Date(lastSession.punch_out).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 
+                                            let rowStyle = { backgroundColor: isSunday ? 'rgba(0,0,0,0.02)' : 'transparent' };
+                                            if (isLeave) {
+                                                rowStyle.backgroundColor = isPaidLeave ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)';
+                                            }
+
                                             return (
-                                                <tr key={idx} style={{ backgroundColor: isSunday ? 'rgba(0,0,0,0.02)' : 'transparent' }}>
+                                                <tr key={idx} style={rowStyle}>
                                                     <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', fontWeight: 500, color: isSunday ? 'var(--info)' : 'inherit' }}>
                                                         {day.date} {isSunday ? '(Sun)' : ''}
                                                     </td>
-                                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)' }}>{isSunday ? '—' : inTime}</td>
-                                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)' }}>{isSunday ? '—' : outTime}</td>
+                                                    <td colSpan={2} style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                                        {isSunday ? '—' : isLeave ? (
+                                                            <span style={{ color: isPaidLeave ? 'var(--success)' : 'var(--error)', fontWeight: 600 }}>
+                                                                {isPaidLeave ? 'Paid Leave' : 'Unpaid Leave (LOP)'}
+                                                            </span>
+                                                        ) : (
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                                                <span>{inTime}</span>
+                                                                <span>{outTime}</span>
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                     <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 600, color: day.total_hours > 0 ? 'var(--success)' : 'inherit' }}>
-                                                        {isSunday ? '—' : `${day.total_hours || 0}h`}
+                                                        {isSunday || isLeave ? '—' : `${day.total_hours || 0}h`}
                                                     </td>
                                                     <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right', fontSize: 12 }}>
                                                         {day.overtime_hours > 0 ? (
                                                             <span style={{ color: 'var(--info)' }}>+{day.overtime_hours}h OT</span>
-                                                        ) : day.deficit_hours > 0 && !isSunday ? (
+                                                        ) : day.deficit_hours > 0 && !isSunday && !isLeave ? (
                                                             <span style={{ color: 'var(--error)' }}>-{day.deficit_hours}h</span>
                                                         ) : '—'}
                                                     </td>

@@ -107,6 +107,7 @@ async def _apply_override(db, employee_id: str, session_date: str):
                 "punch_out_time": override["override_punch_out"],
                 "gross_hours": gross_hours,
                 "net_hours": net_hours,
+                "status": "COMPLETE",  # Override corrects the session fully
             })
 
     elif override_type == "SET_PUNCH_IN":
@@ -137,6 +138,7 @@ async def _apply_override(db, employee_id: str, session_date: str):
                 "punch_out_time": override["override_punch_out"],
                 "gross_hours": gross_hours,
                 "net_hours": net_hours,
+                "status": "COMPLETE",  # Override corrects the session fully
             })
 
     elif override_type == "MARK_ABSENT":
