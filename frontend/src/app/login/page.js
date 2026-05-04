@@ -42,7 +42,7 @@ export default function LoginPage() {
         <div className="login-header">
           <div className="icon">⏱️</div>
           <h2>AttendPay</h2>
-          <p>Admin Portal Authentication</p>
+          <p>Portal Authentication</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -86,7 +86,7 @@ export default function LoginPage() {
             disabled={isLoading}
             className="login-btn"
           >
-            {isLoading ? 'Authenticating...' : 'Sign In to Dashboard'}
+            {isLoading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
 

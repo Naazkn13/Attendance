@@ -85,7 +85,7 @@ export default function RootLayout({ children }) {
   // IMPORTANT: use strict check — only /employee/ routes (with trailing slash or subpath)
   // are employee portal routes. /employees is an admin route.
   const isEmployeePortalRoute = pathname === '/employee' || pathname?.startsWith('/employee/');
-  const isLoginRoute = pathname === '/login' || pathname === '/employee/login';
+  const isLoginRoute = pathname === '/login';
 
   useEffect(() => {
     // Allow login pages always
@@ -96,7 +96,7 @@ export default function RootLayout({ children }) {
 
     // Not authenticated? Redirect to appropriate login
     if (!isAuthenticated()) {
-      router.push(isEmployeePortalRoute ? '/employee/login' : '/login');
+      router.push('/login');
       return;
     }
 
