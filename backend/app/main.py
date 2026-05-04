@@ -114,6 +114,19 @@ app.include_router(leaves.router)
 app.include_router(users.router)
 
 
+# Global exception handler — ensures 500 errors return JSON (and CORS headers)
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)}"},
+    )
+
+
 @app.get("/")
 async def root():
     return {
