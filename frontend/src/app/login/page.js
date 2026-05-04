@@ -21,7 +21,8 @@ export default function LoginPage() {
       if (hasRole(['ADMIN', 'SUPERADMIN'])) {
         router.push('/');
       } else {
-        setError('Employees must use the employee portal to login.');
+        // Auto-redirect employees to their portal
+        router.push('/employee/dashboard');
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');

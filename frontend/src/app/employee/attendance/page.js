@@ -25,9 +25,7 @@ export default function EmployeeAttendancePage() {
         }
     };
 
-    useEffect(() => {
-        loadData();
-    }, [year, month]);
+    useEffect(() => { loadData(); }, [year, month]);
 
     const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -38,93 +36,102 @@ export default function EmployeeAttendancePage() {
 
     const getStatusStyle = (status) => {
         switch(status) {
-            case 'COMPLETE': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-            case 'MISSING_OUT': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-            case 'AUTO_CHECKOUT': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-            default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+            case 'COMPLETE': return { background: 'rgba(16,185,129,0.1)', color: '#10b981' };
+            case 'MISSING_OUT': return { background: 'rgba(239,68,68,0.1)', color: '#ef4444' };
+            case 'AUTO_CHECKOUT': return { background: 'rgba(245,158,11,0.1)', color: '#f59e0b' };
+            default: return { background: '#f1f5f9', color: '#64748b' };
         }
     };
 
+    const cardStyle = {
+        background: '#ffffff', borderRadius: '16px', padding: '24px',
+        border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+    };
+
+    const inputStyle = {
+        padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px',
+        fontSize: '14px', fontFamily: 'inherit', color: '#0f172a', background: '#fff'
+    };
+
     return (
-        <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">My Attendance</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">View your daily punch records</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <select 
-                            value={month} 
-                            onChange={(e) => setMonth(Number(e.target.value))}
-                            className="text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        >
-                            {monthNames.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
-                        </select>
-                        <input 
-                            type="number" 
-                            value={year} 
-                            onChange={(e) => setYear(Number(e.target.value))}
-                            className="w-20 text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        />
-                    </div>
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                    <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#1e293b' }}>My Attendance</h2>
+                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>View your daily punch records</p>
                 </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <select value={month} onChange={(e) => setMonth(Number(e.target.value))} style={inputStyle}>
+                        {monthNames.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                    </select>
+                    <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ ...inputStyle, width: '90px' }} />
+                </div>
+            </div>
 
-                {error && (
-                    <div className="p-4 bg-red-50 text-red-700 border-b border-red-200">{error}</div>
-                )}
+            {error && <div style={{
+                background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+                color: '#ef4444', padding: '12px 16px', borderRadius: '10px', fontSize: '14px', marginBottom: '16px'
+            }}>❌ {error}</div>}
 
+            <div style={cardStyle}>
                 {loading ? (
-                    <div className="p-8 text-center text-gray-500">Loading attendance data...</div>
+                    <div style={{ padding: '60px 0', textAlign: 'center', color: '#94a3b8' }}>
+                        Loading attendance data...
+                    </div>
                 ) : attendance.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <div className="text-4xl mb-4">📅</div>
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">No Records Found</h3>
-                        <p className="text-gray-500 dark:text-gray-400">No attendance data exists for {monthNames[month - 1]} {year}.</p>
+                    <div style={{ padding: '60px 0', textAlign: 'center' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+                        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', marginBottom: '8px' }}>No Records Found</h3>
+                        <p style={{ color: '#64748b', fontSize: '14px' }}>No attendance data exists for {monthNames[month - 1]} {year}.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-900">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Punch In</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Punch Out</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                                    {['Date', 'Punch In', 'Punch Out', 'Hours', 'Status'].map(h => (
+                                        <th key={h} style={{ padding: '12px', textAlign: 'left', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>{h}</th>
+                                    ))}
                                 </tr>
                             </thead>
-                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody>
                                 {attendance.map((session) => {
                                     const dateObj = new Date(session.session_date);
                                     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
                                     
                                     return (
-                                        <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900 dark:text-white">{session.session_date}</div>
-                                                <div className="text-xs text-gray-500">{dayName}</div>
+                                        <tr key={session.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                            <td style={{ padding: '16px 12px' }}>
+                                                <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{session.session_date}</div>
+                                                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{dayName}</div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                <span className="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                                            <td style={{ padding: '16px 12px' }}>
+                                                <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontSize: '13px', color: '#475569', fontWeight: 500 }}>
                                                     {formatTime(session.punch_in_time)}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                <span className={`font-mono px-2 py-1 rounded ${session.punch_out_time ? 'bg-gray-100 dark:bg-gray-700' : 'text-gray-400'}`}>
+                                            <td style={{ padding: '16px 12px' }}>
+                                                <span style={{ fontFamily: 'monospace', background: session.punch_out_time ? '#f1f5f9' : 'transparent', padding: '4px 8px', borderRadius: '6px', fontSize: '13px', color: session.punch_out_time ? '#475569' : '#cbd5e1', fontWeight: 500 }}>
                                                     {formatTime(session.punch_out_time)}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                            <td style={{ padding: '16px 12px', fontSize: '15px', fontWeight: 700, color: '#334155' }}>
                                                 {session.net_hours}h
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyle(session.status)}`}>
-                                                    {session.status.replace('_', ' ')}
-                                                </span>
-                                                {session.has_override && (
-                                                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 rounded-full font-medium">Overridden</span>
-                                                )}
+                                            <td style={{ padding: '16px 12px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <span style={{
+                                                        padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
+                                                        ...getStatusStyle(session.status)
+                                                    }}>
+                                                        {session.status.replace('_', ' ')}
+                                                    </span>
+                                                    {session.has_override && (
+                                                        <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: '#e0e7ff', color: '#4f46e5' }}>
+                                                            Overridden
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );

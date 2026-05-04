@@ -25,6 +25,13 @@ async function request(path, options = {}) {
   });
 
   if (!res.ok) {
+    // Auto-logout on 401 — stale/expired token
+    if (res.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      return;
+    }
     const error = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(error.detail || `API Error: ${res.status}`);
   }
