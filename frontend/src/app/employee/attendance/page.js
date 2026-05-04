@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMyAttendance } from '@/lib/api';
+import { getMyAttendance, getMyProfile } from '@/lib/api';
 
 export default function EmployeeAttendancePage() {
     const [attendance, setAttendance] = useState([]);
+    const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -16,8 +17,12 @@ export default function EmployeeAttendancePage() {
         setLoading(true);
         setError(null);
         try {
-            const data = await getMyAttendance(year, month);
-            setAttendance(data || []);
+            const [attendanceData, profileData] = await Promise.all([
+                getMyAttendance(year, month),
+                getMyProfile()
+            ]);
+            setAttendance(attendanceData || []);
+            setProfile(profileData || null);
         } catch (err) {
             setError(err.message || 'Failed to load attendance');
         } finally {
@@ -53,12 +58,22 @@ export default function EmployeeAttendancePage() {
         fontSize: '14px', fontFamily: 'inherit', color: '#0f172a', background: '#fff'
     };
 
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const perDaySalary = profile?.basic_salary ? (profile.basic_salary / daysInMonth).toFixed(2) : '0.00';
+
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#1e293b' }}>My Attendance</h2>
-                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>View your daily punch records</p>
+                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
+                        View your daily punch records
+                        {profile?.basic_salary && (
+                            <span style={{ marginLeft: '12px', padding: '4px 8px', background: '#e0f2fe', color: '#0369a1', borderRadius: '6px', fontWeight: 600 }}>
+                                Per Day Rate: ₹{perDaySalary}
+                            </span>
+                        )}
+                    </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <select value={month} onChange={(e) => setMonth(Number(e.target.value))} style={inputStyle}>
