@@ -150,12 +150,24 @@ async def deactivate_override(override_id: UUID, performed_by: Optional[UUID] = 
         "performed_by": str(performed_by) if performed_by else None,
     }).execute()
 
-    # Re-run override applicator to remove the override effect
-    # This will result in session going back to raw data
+    # Restore the session from the snapshot taken when this override was created
+    log_entry = db.table("manual_corrections_log").select("session_snapshot_before").eq("override_id", str(override_id)).eq("action", "CREATED").execute()
+    
+    if log_entry.data and log_entry.data[0].get("session_snapshot_before"):
+        snapshot = log_entry.data[0]["session_snapshot_before"]
+        # Delete the current modified session
+        db.table("attendance_sessions").delete().eq("employee_id", override["employee_id"]).eq("session_date", override["session_date"]).execute()
+        # Insert the snapshot back
+        db.table("attendance_sessions").insert(snapshot).execute()
+    else:
+        # If no snapshot exists (e.g. it was a MARK_PRESENT that created a synthetic session), just delete the synthetic session
+        db.table("attendance_sessions").delete().eq("employee_id", override["employee_id"]).eq("session_date", override["session_date"]).eq("has_override", True).execute()
+
+    # Re-run override applicator just in case there's another older active override that now takes precedence
     from app.workers.override_applicator import apply_overrides_for_sessions
     await apply_overrides_for_sessions([(override["employee_id"], override["session_date"])])
 
-    return {"message": "Override deactivated"}
+    return {"message": "Override deactivated and session restored"}
 
 
 @router.get("/corrections/log")
