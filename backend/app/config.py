@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     duplicate_threshold_seconds: int = 120
     auto_checkout_buffer_minutes: int = 30
     device_poll_interval_seconds: int = 60
+    jwt_secret_key: str = "your-secret-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 480  # 8 hours
 
     class Config:
         env_file = ".env"

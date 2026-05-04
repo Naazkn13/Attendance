@@ -71,6 +71,17 @@ async def calculate_payroll(employee_id: str, period_start: date, period_end: da
         .execute()
     holiday_dates = {h["date"]: h.get("description", "Holiday") for h in (holidays_result.data or [])}
 
+    # Fetch approved leaves
+    leaves_result = db.table("leave_requests") \
+        .select("*") \
+        .eq("employee_id", employee_id) \
+        .eq("status", "APPROVED") \
+        .gte("leave_date", period_start.isoformat()) \
+        .lte("leave_date", period_end.isoformat()) \
+        .execute()
+    
+    approved_leaves = {leave["leave_date"]: leave for leave in (leaves_result.data or [])}
+
     # Group sessions by date for daily calculation
     daily_data = {}
     for session in sessions:
@@ -91,6 +102,8 @@ async def calculate_payroll(employee_id: str, period_start: date, period_end: da
     daily_breakdown = []
     holidays_count = 0
     holidays_worked = 0
+    paid_leaves_count = 0
+    unpaid_leaves_count = 0
     warnings = []
 
     # Process each day in the period
@@ -226,13 +239,41 @@ async def calculate_payroll(employee_id: str, period_start: date, period_end: da
 
                 total_day_salary += day_salary
             else:
-                # Absent on working day — no pay for this day
-                days_absent += 1
-                day_details["total_hours"] = 0
-                day_details["day_salary"] = 0
-                day_details["deficit_hours"] = float(shift_hours)
-                day_details["total_day_pay"] = 0
-                total_deficit += shift_hours
+                # Absent on working day
+                leave_info = approved_leaves.get(current_str)
+                
+                if leave_info:
+                    day_details["is_leave"] = True
+                    day_details["leave_type"] = leave_info.get("leave_type")
+                    if leave_info.get("is_paid"):
+                        # Paid leave
+                        paid_leaves_count += 1
+                        day_details["is_paid_leave"] = True
+                        # Credit hours and salary so it's not considered absent/deficit
+                        day_details["total_hours"] = float(shift_hours) 
+                        day_details["day_salary"] = float(per_day_salary)
+                        day_details["deficit_hours"] = 0
+                        day_details["total_day_pay"] = float(per_day_salary)
+                        total_day_salary += per_day_salary
+                        total_worked_hours += shift_hours 
+                    else:
+                        # Unpaid leave
+                        unpaid_leaves_count += 1
+                        days_absent += 1
+                        day_details["is_unpaid_leave"] = True
+                        day_details["total_hours"] = 0
+                        day_details["day_salary"] = 0
+                        day_details["deficit_hours"] = float(shift_hours)
+                        day_details["total_day_pay"] = 0
+                        total_deficit += shift_hours
+                else:
+                    # Normal absence
+                    days_absent += 1
+                    day_details["total_hours"] = 0
+                    day_details["day_salary"] = 0
+                    day_details["deficit_hours"] = float(shift_hours)
+                    day_details["total_day_pay"] = 0
+                    total_deficit += shift_hours
 
         daily_breakdown.append(day_details)
         current += timedelta(days=1)
@@ -259,6 +300,8 @@ async def calculate_payroll(employee_id: str, period_start: date, period_end: da
         "total_overtime_pay": float(total_overtime_pay.quantize(Decimal("0.01"))),
         "holidays_in_period": holidays_count,
         "holidays_worked": holidays_worked,
+        "paid_leaves_count": paid_leaves_count,
+        "unpaid_leaves_count": unpaid_leaves_count,
         "holiday_list": [{
             "date": d,
             "description": desc

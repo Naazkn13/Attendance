@@ -2,16 +2,26 @@
  * Backend API client for the Attendance & Payroll system.
  */
 
+import { getToken } from './auth';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
+  const token = getToken();
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
     ...options,
+    headers,
   });
 
   if (!res.ok) {
@@ -138,9 +148,16 @@ export const uploadSyncFile = async (file, deviceSn) => {
   formData.append('file', file);
   formData.append('device_sn', deviceSn || 'MANUAL_USB');
 
+  const token = getToken();
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}/api/sync/upload-dat`, {
     method: 'POST',
     body: formData,
+    headers,
   });
 
   if (!res.ok) {
@@ -149,3 +166,43 @@ export const uploadSyncFile = async (file, deviceSn) => {
   }
   return res.json();
 };
+
+// ── Employee Portal ──
+export const getMyProfile = () => request('/api/portal/my-profile');
+export const getMyPayslips = (year, month) => {
+  const query = new URLSearchParams();
+  if (year) query.set('year', year);
+  if (month) query.set('month', month);
+  return request(`/api/portal/my-payslips?${query.toString()}`);
+};
+export const getMyPayslip = (periodStart) => request(`/api/portal/my-payslip/${periodStart}`);
+export const getMyAttendance = (year, month) => request(`/api/portal/my-attendance?year=${year}&month=${month}`);
+
+// ── Leaves (Employee) ──
+export const applyLeave = (data) => request('/api/leaves/apply', { method: 'POST', body: JSON.stringify(data) });
+export const getMyLeaves = (year, month) => {
+  const query = new URLSearchParams();
+  if (year) query.set('year', year);
+  if (month) query.set('month', month);
+  return request(`/api/leaves/my-leaves?${query.toString()}`);
+};
+export const getMyLeaveBalance = (year, month) => request(`/api/leaves/my-balance?year=${year}&month=${month}`);
+
+// ── Leaves (Admin) ──
+export const getPendingLeaves = () => request('/api/leaves/pending');
+export const getAllLeaves = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.employee_id) query.set('employee_id', params.employee_id);
+  if (params.year) query.set('year', params.year);
+  if (params.month) query.set('month', params.month);
+  if (params.status) query.set('status', params.status);
+  return request(`/api/leaves/all?${query.toString()}`);
+};
+export const approveLeave = (id) => request(`/api/leaves/${id}/approve`, { method: 'POST' });
+export const rejectLeave = (id, reason) => request(`/api/leaves/${id}/reject`, { method: 'POST', body: JSON.stringify({ rejection_reason: reason }) });
+export const getLeaveSummary = (employeeId, year) => request(`/api/leaves/summary/${employeeId}?year=${year}`);
+
+// ── User Management (Admin) ──
+export const createAdmin = (data) => request('/api/users/admins', { method: 'POST', body: JSON.stringify(data) });
+export const getAdmins = () => request('/api/users/admins');
+export const setEmployeePassword = (employeeId, password) => request(`/api/users/employees/${employeeId}/set-password`, { method: 'POST', body: JSON.stringify({ password }) });
