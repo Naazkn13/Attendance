@@ -302,10 +302,40 @@ async def calculate_payroll(employee_id: str, period_start: date, period_end: da
     missing_hours = max(Decimal("0"), expected_hours - total_worked_hours)
     salary_cut = basic_salary - total_day_salary  # implicit from proportional day salary
 
-    # Final = total day salaries + overtime pay - PT
-    final_salary = (total_day_salary + total_overtime_pay - PT_DEDUCTION).quantize(
+    # PL (Paid Leave) Adjustment — Unused Leave Encashment
+    # Each employee is entitled to 1 paid leave per month.
+    # If they didn't use it, they get an extra per_day_salary as a bonus.
+    pl_entitlement = 1
+    
+    # Retroactive constraint for April 2026: only 4 specific employees get PL adjustment
+    # because others used corrections for leaves before the portal was launched.
+    if period_start.year == 2026 and period_start.month == 4:
+        eligible_names = ["shabnam", "shruti", "yogesh", "shamim"]
+        emp_name = employee.get("name", "").lower()
+        if not any(n in emp_name for n in eligible_names):
+            pl_entitlement = 0
+            
+    unused_pl = max(0, pl_entitlement - paid_leaves_count)
+    pl_adjustment = (Decimal(str(unused_pl)) * per_day_salary).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
+
+    # Conveyance — ₹30 per day present, only for Shruti Kate
+    emp_name_lower = employee.get("name", "").lower()
+    if "shruti" in emp_name_lower:
+        conveyance = (Decimal("30") * Decimal(str(days_present))).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    else:
+        conveyance = Decimal("0")
+
+    # Final = total day salaries + overtime pay + PL adjustment + conveyance - PT
+    final_salary = (total_day_salary + total_overtime_pay + pl_adjustment + conveyance - PT_DEDUCTION).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+    if pl_adjustment > 0:
+        logger.info(f"PL adjustment for {employee_id}: {unused_pl} unused day(s) → +₹{pl_adjustment}")
 
     calculation_details = {
         "daily_breakdown": daily_breakdown,
@@ -317,6 +347,10 @@ async def calculate_payroll(employee_id: str, period_start: date, period_end: da
         "pt_deduction": float(PT_DEDUCTION),
         "total_day_salary": float(total_day_salary.quantize(Decimal("0.01"))),
         "total_overtime_pay": float(total_overtime_pay.quantize(Decimal("0.01"))),
+        "pl_entitlement": pl_entitlement,
+        "unused_pl_days": unused_pl,
+        "pl_adjustment": float(pl_adjustment),
+        "conveyance": float(conveyance),
         "holidays_in_period": holidays_count,
         "holidays_worked": holidays_worked,
         "paid_leaves_count": paid_leaves_count,

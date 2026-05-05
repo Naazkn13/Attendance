@@ -213,6 +213,16 @@ export default function PayrollPage() {
                                     ₹{Number(selectedPayroll.final_salary).toLocaleString('en-IN')}
                                 </div>
                                 <div className="stat-card-label">Final Salary</div>
+                                {selectedPayroll.calculation_details?.pl_adjustment > 0 && (
+                                    <div style={{ marginTop: 8, fontSize: 11, background: 'var(--bg-accent)', color: 'var(--accent-primary)', padding: '2px 6px', borderRadius: 4, display: 'inline-block', fontWeight: 600 }}>
+                                        +₹{selectedPayroll.calculation_details.pl_adjustment} (PL Adjusted)
+                                    </div>
+                                )}
+                                {selectedPayroll.calculation_details?.conveyance > 0 && (
+                                    <div style={{ marginTop: 4, fontSize: 11, background: '#1a2940', color: '#60a5fa', padding: '2px 6px', borderRadius: 4, display: 'inline-block', fontWeight: 600 }}>
+                                        +₹{selectedPayroll.calculation_details.conveyance} (Conveyance)
+                                    </div>
+                                )}
                             </div>
                             <div className="stat-card" style={{ padding: 16 }}>
                                 <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedPayroll.days_present}/{selectedPayroll.total_working_days}</div>
