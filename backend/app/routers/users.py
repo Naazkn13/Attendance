@@ -41,7 +41,7 @@ async def create_admin(
 
 @router.get("/admins")
 async def list_admins(
-    current_user: dict = Depends(require_role(["SUPERADMIN"]))
+    current_user: dict = Depends(require_role(["SUPERADMIN", "ADMIN"]))
 ):
     supabase = get_supabase()
     response = supabase.table("users").select("id, username, role, is_active, created_at, last_login_at").eq("role", "ADMIN").execute()

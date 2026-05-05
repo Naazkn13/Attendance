@@ -31,18 +31,25 @@ export default function UserManagementPage() {
   const [alert, setAlert] = useState(null);
 
   const loadData = async () => {
+    setLoading(true);
+    let adminData = [];
+    let empData = [];
+    
     try {
-      const [adminData, empData] = await Promise.all([
-        apiRequest('/api/users/admins'),
-        getEmployees(true)
-      ]);
-      setAdmins(adminData || []);
-      setEmployees(empData || []);
+      adminData = await apiRequest('/api/users/admins');
     } catch (err) {
-      console.error('Failed to load data:', err);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load admins:', err);
     }
+    
+    try {
+      empData = await getEmployees(true);
+    } catch (err) {
+      console.error('Failed to load employees:', err);
+    }
+    
+    setAdmins(adminData || []);
+    setEmployees(empData || []);
+    setLoading(false);
   };
 
   useEffect(() => { loadData(); }, []);
