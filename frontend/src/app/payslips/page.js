@@ -60,6 +60,47 @@ export default function PayslipsPage() {
 
     const handlePrint = (payslip) => { setSelectedPayslip(payslip); setTimeout(() => window.print(), 400); };
 
+    const handleExportExcel = () => {
+        if (!payslips || !payslips.payslips || payslips.payslips.length === 0) return;
+        
+        // Prepare CSV data
+        const headers = ['Employee Code', 'Employee Name', 'Basic Salary', 'Days Present', 'Days Absent', 'Overtime Hours', 'Overtime Pay', 'PL Adjusted', 'Deductions', 'Net Pay'];
+        
+        const rows = payslips.payslips.filter(p => p.status !== 'error').map(p => {
+            const basic = p.basic_salary || 0;
+            const otPay = p.overtime_pay || 0;
+            const pt = p.pt_deduction || 200;
+            const salaryCut = p.salary_cut || 0;
+            const plAdj = p.pl_adjustment || 0;
+            const deductions = pt + salaryCut;
+            
+            return [
+                p.device_user_id || '',
+                `"${p.employee_name || ''}"`,
+                basic,
+                p.days_present || 0,
+                p.days_absent || 0,
+                p.overtime_hours || 0,
+                otPay,
+                plAdj,
+                deductions,
+                p.final_salary || 0
+            ].join(',');
+        });
+        
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `payroll_${monthNames[month-1]}_${year}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div>
             <div className="page-header">
@@ -81,9 +122,14 @@ export default function PayslipsPage() {
                         <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} min={2020} max={2030}
                             style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.875rem', width: '100px' }} />
                     </div>
-                    <button className="btn btn-primary" onClick={handleGenerate} disabled={loading}>
-                        {loading ? '⏳ Generating...' : '🧾 Generate Payslips'}
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+                        <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || !payslips?.payslips?.length}>
+                            📥 Download Excel
+                        </button>
+                        <button className="btn btn-primary" onClick={handleGenerate} disabled={loading}>
+                            {loading ? '⏳ Generating...' : '🧾 Generate Payslips'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -98,10 +144,10 @@ export default function PayslipsPage() {
                     <table>
                         <thead><tr><th>Employee</th><th>Basic</th><th>Present</th><th>OT Pay</th><th>Deductions</th><th>Net Pay</th><th>Actions</th></tr></thead>
                         <tbody>
-                            {payslips.payslips.map((p) => p.status === 'error' ? (
-                                <tr key={p.employee_id}><td style={{ fontWeight: 600 }}>{p.employee_name}</td><td colSpan={5}><span className="badge badge-error">Error: {p.error}</span></td><td></td></tr>
+                            {payslips.payslips.map((p, idx) => p.status === 'error' ? (
+                                <tr key={`${p.employee_id}-err-${idx}`}><td style={{ fontWeight: 600 }}>{p.employee_name}</td><td colSpan={5}><span className="badge badge-error">Error: {p.error}</span></td><td></td></tr>
                             ) : (
-                                <tr key={p.employee_id}>
+                                <tr key={`${p.employee_id}-${idx}`}>
                                     <td style={{ fontWeight: 600 }}>{p.employee_name}</td>
                                     <td>{fmt(p.basic_salary)}</td>
                                     <td><span className="badge badge-success">{p.days_present}</span>{p.days_absent > 0 && <span className="badge badge-error" style={{ marginLeft: 4 }}>{p.days_absent} absent</span>}</td>
@@ -162,12 +208,16 @@ function PayslipDetail({ payslip, month, year, fmt }) {
     const p = payslip;
     const companyName = getCompanyName(p.employee_name);
     const isShruti = p.employee_name && p.employee_name.toLowerCase().includes('shruti');
-    const conveyance = isShruti ? 30 * (p.days_present || 0) : 0;
+    const conveyance = p.calculation_details?.conveyance || 0;
 
     // Transparent breakdown: show full basic, deduct LOP + short hours separately
     const basicSalary = p.basic_salary || 0;
     const otPay = p.overtime_pay || 0;
     const pt = p.calculation_details?.pt_deduction || p.pt_deduction || 0;
+    
+    // PL Adjustment
+    const plAdjustment = p.calculation_details?.pl_adjustment || p.pl_adjustment || 0;
+    const unusedPlDays = p.calculation_details?.unused_pl_days || p.unused_pl_days || 0;
     
     // Use the stored calculation details if available
     const perDaySalary = p.calculation_details?.per_day_salary || p.per_day_salary || 0;
@@ -178,7 +228,7 @@ function PayslipDetail({ payslip, month, year, fmt }) {
     const totalGap = basicSalary - totalDaySalary;
     const shortHoursDeduction = Math.max(0, Math.round((totalGap - lopDeduction) * 100) / 100);
 
-    const totalEarnings = basicSalary + otPay + conveyance;
+    const totalEarnings = basicSalary + otPay + conveyance + plAdjustment;
     const totalDeductions = lopDeduction + shortHoursDeduction + pt;
     const netPay = p.final_salary || Math.round((totalEarnings - totalDeductions) * 100) / 100;
 
@@ -258,14 +308,14 @@ function PayslipDetail({ payslip, month, year, fmt }) {
                             <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 600, color: shortHoursDeduction > 0 ? '#c00' : '#111' }}>{fmt(shortHoursDeduction)}</td>
                         </tr>
                         <tr>
-                            <td style={cellStyle}>Conveyance{isShruti ? ` (₹30 × ${p.days_present || 0} days)` : ''}</td>
+                            <td style={cellStyle}>Conveyance{conveyance > 0 ? ` (₹30 × ${p.days_present || 0} days)` : ''}</td>
                             <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 600, borderRight: '1px solid #999' }}>{fmt(conveyance)}</td>
                             <td style={cellStyle}>Professional Tax (PT)</td>
                             <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 600 }}>{fmt(pt)}</td>
                         </tr>
                         <tr>
-                            <td style={{ ...cellStyle, height: '24px' }}></td>
-                            <td style={{ ...cellStyle, borderRight: '1px solid #999' }}></td>
+                            <td style={cellStyle}>PL Adjusted ({unusedPlDays} day)</td>
+                            <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 600, borderRight: '1px solid #999' }}>{plAdjustment > 0 ? fmt(plAdjustment) : ''}</td>
                             <td style={{ ...cellStyle, height: '24px' }}></td>
                             <td style={cellStyle}></td>
                         </tr>
